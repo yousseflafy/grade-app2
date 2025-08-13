@@ -109,8 +109,8 @@ export default function App() {
       "Passed": passCount, // New: Number of passing students
       "Failed": N - passCount, // New: Number of failing students
       "Passing Rate (%)": ((passCount / N) * 100).toFixed(1),
-      "Distinction Rate (%)": ((distCount / N) * 100).toFixed(1),
       "Merit Rate (%)": ((meritCount / N) * 100).toFixed(1), // New: Merit rate
+      "Distinction Rate (%)": ((distCount / N) * 100).toFixed(1),
       Mean: mean.toFixed(2),
       SD: sd.toFixed(2),
       Max: Math.max(...grades),
@@ -139,8 +139,8 @@ export default function App() {
         "Passed": pass, // New: Number of passing students in the group
         "Failed": n - pass, // New: Number of failing students in the group
         "Passing Rate (%)": ((pass / n) * 100).toFixed(1),
-        "Distinction Rate (%)": ((d / n) * 100).toFixed(1),
         "Merit Rate (%)": ((mCount / n) * 100).toFixed(1), // New: Merit rate for the group
+        "Distinction Rate (%)": ((d / n) * 100).toFixed(1),
         Mean: m.toFixed(2),
         SD: s.toFixed(2),
         Max: Math.max(...arr),
