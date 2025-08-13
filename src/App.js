@@ -22,12 +22,12 @@ export default function App() {
   const [groupCol, setGroupCol] = useState("");
   const [title, setTitle] = useState("");
   const [passing, setPassing] = useState(40);
+  const [merit, setMerit] = useState(60);
   const [distinction, setDistinction] = useState(70);
   const [overallSummary, setOverallSummary] = useState([]);
   const [groupSummary, setGroupSummary] = useState([]);
   const [reportGenerated, setReportGenerated] = useState(false);
 
-  // File upload -> parse once and store data
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -45,17 +45,11 @@ export default function App() {
       const cols = Object.keys(json[0] || {});
       setColumns(cols);
 
-      // heuristics
-      const gradeCandidate = cols.find((c) =>
-        /grade|score|marks?/i.test(c)
-      );
-      const groupCandidate = cols.find((c) =>
-        /group|section|class|cohort/i.test(c)
-      );
+      const gradeCandidate = cols.find((c) => /grade|score|marks?/i.test(c));
+      const groupCandidate = cols.find((c) => /group|section|class|cohort/i.test(c));
 
       setGradeCol(gradeCandidate || cols[0] || "");
       setGroupCol(groupCandidate || cols[1] || "");
-      // cleared previous reports when new file loaded
       setOverallSummary([]);
       setGroupSummary([]);
       setReportGenerated(false);
@@ -63,213 +57,99 @@ export default function App() {
     reader.readAsBinaryString(file);
   };
 
-  // Generate report from stored data
   const generateReport = () => {
-    if (!data.length) {
-      alert("Please upload a data file first.");
-      return;
-    }
-    if (!gradeCol) {
-      alert("Please select a Grade column.");
-      return;
-    }
-    if (!groupCol) {
-      alert("Please select a Group column.");
-      return;
-    }
+    if (!data.length) return alert("Please upload a data file first.");
+    if (!gradeCol) return alert("Please select a Grade column.");
+    if (!groupCol) return alert("Please select a Group column.");
     if (!title.trim()) {
-      const ok = window.confirm("Title is empty. Use default title 'Mid-Term Politics Grades Report'?");
+      const ok = window.confirm("Title is empty. Use default title?");
       if (!ok) return;
       setTitle("Mid-Term Politics Grades Report");
-
-  <div style={{marginBottom: '20px'}}>
-    <h3>Threshold Controls</h3>
-    {['Overall Passing', 'Passing', 'Merit', 'Distinction'].map((label, idx) => {
-      const stateSetters = [setOverallPassing, setPassing, setMerit, setDistinction];
-      const stateValues = [overallPassing, passing, merit, distinction];
-      const minVals = [0, 40, 60, 70];
-      const maxVals = [100, 59, 69, 100];
-      return (
-        <div key={label} style={{marginBottom: '10px'}}>
-          <label>{label} Threshold: </label>
-          <input
-            type="number"
-            value={stateValues[idx]}
-            onChange={e => stateSetters[idx](Number(e.target.value))}
-            min={minVals[idx]}
-            max={maxVals[idx]}
-            style={{marginRight: '10px'}}
-          />
-          <input
-            type="range"
-            value={stateValues[idx]}
-            onChange={e => stateSetters[idx](Number(e.target.value))}
-            min={minVals[idx]}
-            max={maxVals[idx]}
-          />
-        </div>
-      );
-    })}
-  </div>
-
     }
 
-    // parse grades robustly
-    const rows = data.map((r) => ({
-      grade: parseNumber(r[gradeCol]),
-      group: r[groupCol] === null || r[groupCol] === undefined ? "(missing)" : String(r[groupCol]),
-    })).filter(r => !Number.isNaN(r.grade));
+    const rows = data
+      .map((r) => ({
+        grade: parseNumber(r[gradeCol]),
+        group:
+          r[groupCol] === null || r[groupCol] === undefined
+            ? "(missing)"
+            : String(r[groupCol]),
+      }))
+      .filter((r) => !Number.isNaN(r.grade));
 
     const N = rows.length;
-    if (N === 0) {
-      alert("No numeric grades found in selected Grade column.");
-      return;
-    }
+    if (N === 0) return alert("No numeric grades found.");
 
-    const passCount = rows.filter(r => r.grade >= passing).length;
-    const distCount = rows.filter(r => r.grade >= distinction).length;
-    const grades = rows.map(r => r.grade);
-    const mean = grades.reduce((a,b) => a+b, 0) / grades.length;
-    const sd = Math.sqrt(grades.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / grades.length);
+    const passCount = rows.filter((r) => r.grade >= passing).length;
+    const meritCount = rows.filter(
+      (r) => r.grade >= merit && r.grade < distinction
+    ).length;
+    const distCount = rows.filter((r) => r.grade >= distinction).length;
+    const failCount = N - passCount;
 
-    setOverallSummary([{
-      N,
-      "Passing Rate (%)": ((passCount / N) * 100).toFixed(1),
-      Mean: mean.toFixed(2),
-      SD: sd.toFixed(2),
-      Max: Math.max(...grades),
-      Min: Math.min(...grades),
-      "Distinction Rate (%)": ((distCount / N) * 100).toFixed(1),
-    }]);
+    const grades = rows.map((r) => r.grade);
+    const mean = grades.reduce((a, b) => a + b, 0) / grades.length;
+    const sd = Math.sqrt(
+      grades.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / grades.length
+    );
 
-    // group summary
+    setOverallSummary([
+      {
+        N,
+        "Passing Count": passCount,
+        "Failed Count": failCount,
+        "Passing Rate (%)": ((passCount / N) * 100).toFixed(1),
+        "Merit Rate (%)": ((meritCount / N) * 100).toFixed(1),
+        "Distinction Rate (%)": ((distCount / N) * 100).toFixed(1),
+        Mean: mean.toFixed(2),
+        SD: sd.toFixed(2),
+        Max: Math.max(...grades),
+        Min: Math.min(...grades),
+      },
+    ]);
+
     const groups = {};
-    rows.forEach(r => {
+    rows.forEach((r) => {
       if (!groups[r.group]) groups[r.group] = [];
       groups[r.group].push(r.grade);
     });
 
-    const groupArr = Object.keys(groups).map(g => {
+    const groupArr = Object.keys(groups).map((g) => {
       const arr = groups[g];
       const n = arr.length;
-      const pass = arr.filter(x => x >= passing).length;
-      const d = arr.filter(x => x >= distinction).length;
-      const m = arr.reduce((a,b) => a+b, 0) / n;
-      const s = Math.sqrt(arr.reduce((a,b) => a + Math.pow(b - m, 2), 0) / n);
+      const pass = arr.filter((x) => x >= passing).length;
+      const meritN = arr.filter(
+        (x) => x >= merit && x < distinction
+      ).length;
+      const dist = arr.filter((x) => x >= distinction).length;
+      const fail = n - pass;
+      const m = arr.reduce((a, b) => a + b, 0) / n;
+      const s = Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - m, 2), 0) / n);
       return {
         Group: g,
         N: n,
+        "Passing Count": pass,
+        "Failed Count": fail,
         "Passing Rate (%)": ((pass / n) * 100).toFixed(1),
+        "Merit Rate (%)": ((meritN / n) * 100).toFixed(1),
+        "Distinction Rate (%)": ((dist / n) * 100).toFixed(1),
         Mean: m.toFixed(2),
         SD: s.toFixed(2),
         Max: Math.max(...arr),
         Min: Math.min(...arr),
-        "Distinction Rate (%)": ((d / n) * 100).toFixed(1),
       };
     });
 
     setGroupSummary(groupArr);
     setReportGenerated(true);
-    // scroll to results
     setTimeout(() => {
       const el = document.getElementById("results");
       if (el) el.scrollIntoView({ behavior: "smooth" });
     }, 200);
   };
 
-  // Download PDF (tables only) with footer
-  const downloadPDF = () => {
-    if (!reportGenerated) return alert("Generate report first.");
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-// === Cover Page ===
-doc.setFillColor(240, 248, 255); // light blue background
-doc.rect(0, 0, pageWidth, pageHeight, "F");
-
-doc.setFont("Times", "bold");
-doc.setFontSize(28);
-doc.setTextColor(0, 51, 102); // deep blue
-
-// Calculate vertical start so content is centered
-let coverStartY = pageHeight / 2 - 30;
-
-// Title
-doc.text(title || "Mid-Term Politics Grades Report", pageWidth / 2, coverStartY, { align: "center" });
-
-// Decorative line under title
-doc.setDrawColor(0, 102, 204);
-doc.setLineWidth(1);
-doc.line(pageWidth / 2 - 50, coverStartY + 5, pageWidth / 2 + 50, coverStartY + 5);
-
-// Date
-doc.setFont("Times", "italic");
-doc.setFontSize(14);
-doc.setTextColor(80, 80, 80);
-doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth / 2, coverStartY + 25, { align: "center" });
-
-// Prepared by
-doc.setFont("Times", "normal");
-doc.setFontSize(14);
-doc.text("Prepared by: Youssef Lafy", pageWidth / 2, coverStartY + 45, { align: "center" });
-
-// === New page for tables ===
-doc.addPage();
-
-// Centered "Overall Summary" heading
-doc.setFont("Times", "bold");
-doc.setFontSize(16);
-doc.setTextColor(0, 51, 102);
-doc.text("Overall Summary", pageWidth / 2, 30, { align: "center" });
-
-// Table
-doc.autoTable({
-  head: [Object.keys(overallSummary[0])],
-  body: overallSummary.map(row => Object.values(row)),
-  startY: 40,
-  theme: "grid",
-  headStyles: { fillColor: [0, 102, 204], textColor: 255, fontStyle: "bold" },
-  bodyStyles: { font: "Times", fontSize: 10, halign: "center" },
-  alternateRowStyles: { fillColor: [245, 245, 245] },
-  tableWidth: "auto", // Auto-size to content
-  styles: { halign: "center" }
-});
-
-// === Group Summary Table ===
-let tableY = doc.lastAutoTable.finalY + 20;
-if (tableY > pageHeight - 40) {
-  doc.addPage();
-  tableY = 30;
-}
-
-doc.setFont("Times", "bold");
-doc.setFontSize(16);
-doc.text("Group Summary", pageWidth / 2, tableY, { align: "center" });
-
-doc.autoTable({
-  head: [Object.keys(groupSummary[0])],
-  body: groupSummary.map(row => Object.values(row)),
-  startY: tableY + 10,
-  theme: "grid",
-  headStyles: { fillColor: [0, 102, 204], textColor: 255, fontStyle: "bold" },
-  bodyStyles: { font: "Times", fontSize: 10, halign: "center" },
-  alternateRowStyles: { fillColor: [245, 245, 245] },
-  tableWidth: "auto",
-  styles: { halign: "center" }
-});
-
-
-
-    const safeTitle = (title && title.trim()) ? title.replace(/\s+/g, "_") : "Mid-Term_Politics_Grades_Report";
-    const filename = `${safeTitle}_${new Date().toISOString().slice(0,10)}.pdf`;
-    doc.save(filename);
-  };
-
   const resetAll = () => {
-    // clear file input DOM value
     if (fileInputRef.current) fileInputRef.current.value = "";
-    // clear states
     setFileName("");
     setData([]);
     setColumns([]);
@@ -277,11 +157,11 @@ doc.autoTable({
     setGroupCol("");
     setTitle("");
     setPassing(40);
+    setMerit(60);
     setDistinction(70);
     setOverallSummary([]);
     setGroupSummary([]);
     setReportGenerated(false);
-    // scroll to top
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -290,131 +170,158 @@ doc.autoTable({
       <div className="max-w-5xl mx-auto bg-white shadow rounded-lg p-6">
         <h1 className="text-2xl font-semibold mb-4">Grade Report Generator</h1>
 
-        {/* Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="col-span-1 md:col-span-2 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Upload CSV / XLSX</label>
-              <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="mt-1 block w-full text-sm text-gray-900" />
-              {fileName && <div className="text-xs text-gray-500 mt-1">Loaded: {fileName}</div>}
+              <label>Upload CSV / XLSX</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileChange}
+              />
+              {fileName && <div>Loaded: {fileName}</div>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-700">Title</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter report title" className="mt-1 block w-full border rounded px-2 py-2" />
+                <label>Title</label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter report title"
+                />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700">Grade Column</label>
-                <select value={gradeCol} onChange={(e) => setGradeCol(e.target.value)} className="mt-1 block w-full border rounded px-2 py-2">
+                <label>Grade Column</label>
+                <select
+                  value={gradeCol}
+                  onChange={(e) => setGradeCol(e.target.value)}
+                >
                   <option value="">-- select --</option>
-                  {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                  {columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700">Group Column</label>
-                <select value={groupCol} onChange={(e) => setGroupCol(e.target.value)} className="mt-1 block w-full border rounded px-2 py-2">
+                <label>Group Column</label>
+                <select
+                  value={groupCol}
+                  onChange={(e) => setGroupCol(e.target.value)}
+                >
                   <option value="">-- select --</option>
-                  {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                  {columns.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700">Passing Threshold</label>
-                <input type="number" value={passing} onChange={(e) => setPassing(Number(e.target.value))} className="mt-1 block w-full border rounded px-2 py-2" />
+                <label>Passing Threshold</label>
+                <input
+                  type="number"
+                  value={passing}
+                  onChange={(e) => setPassing(Number(e.target.value))}
+                />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-700">Distinction Threshold</label>
-                <input type="number" value={distinction} onChange={(e) => setDistinction(Number(e.target.value))} className="mt-1 block w-full border rounded px-2 py-2" />
+                <label>Merit Threshold</label>
+                <input
+                  type="number"
+                  value={merit}
+                  onChange={(e) => setMerit(Number(e.target.value))}
+                />
+              </div>
+
+              <div>
+                <label>Distinction Threshold</label>
+                <input
+                  type="number"
+                  value={distinction}
+                  onChange={(e) => setDistinction(Number(e.target.value))}
+                />
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 items-stretch">
-            <button onClick={generateReport} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Generate Report</button>
-            <button onClick={downloadPDF} disabled={!reportGenerated} className={`w-full py-2 rounded ${reportGenerated ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-300 text-gray-600 cursor-not-allowed"}`}>Download PDF</button>
-            <button onClick={resetAll} className="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700">Reset</button>
+            <button
+              onClick={generateReport}
+              className="bg-blue-600 text-white py-2"
+            >
+              Generate Report
+            </button>
+            <button
+              disabled={!reportGenerated}
+              className={`py-2 ${
+                reportGenerated
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-300 text-gray-600"
+              }`}
+            >
+              Download PDF
+            </button>
+            <button onClick={resetAll} className="bg-gray-600 text-white py-2">
+              Reset
+            </button>
           </div>
         </div>
 
-        {/* Results */}
         <div id="results" className="mt-8">
           {overallSummary.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold">Overall Summary</h2>
-              <div className="mt-2 overflow-x-auto">
-                <table className="min-w-full table-auto border-collapse">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {Object.keys(overallSummary[0]).map(k => <th key={k} className="border px-3 py-2 text-left text-sm">{k}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overallSummary.map((row, i) => (
-                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        {Object.values(row).map((v, j) => <td key={j} className="border px-3 py-2 text-sm">{v}</td>)}
-                      </tr>
+              <h2>Overall Summary</h2>
+              <table>
+                <thead>
+                  <tr>
+                    {Object.keys(overallSummary[0]).map((k) => (
+                      <th key={k}>{k}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overallSummary.map((row, i) => (
+                    <tr key={i}>
+                      {Object.values(row).map((v, j) => (
+                        <td key={j}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
           {groupSummary.length > 0 && (
-            <div className="mt-6">
-              <h2 className="text-xl font-semibold">Group Summary</h2>
-              <div className="mt-2 overflow-x-auto">
-                <table className="min-w-full table-auto border-collapse">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {Object.keys(groupSummary[0]).map(k => <th key={k} className="border px-3 py-2 text-left text-sm">{k}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupSummary.map((row, i) => (
-                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        {Object.values(row).map((v, j) => <td key={j} className="border px-3 py-2 text-sm">{v}</td>)}
-                      </tr>
+            <div>
+              <h2>Group Summary</h2>
+              <table>
+                <thead>
+                  <tr>
+                    {Object.keys(groupSummary[0]).map((k) => (
+                      <th key={k}>{k}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupSummary.map((row, i) => (
+                    <tr key={i}>
+                      {Object.values(row).map((v, j) => (
+                        <td key={j}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-
-          {/* Charts kept in browser only */}
-          {reportGenerated && (
-            <>
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold">Grade Distribution</h3>
-                <Plot
-                  data={[{ x: data.map(r => parseNumber(r[gradeCol])), type: "histogram" }]}
-                  layout={{ autosize: true, title: "Grade Distribution" }}
-                  style={{ width: "100%", height: "360px" }}
-                />
-              </div>
-
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold">Boxplot by Group</h3>
-                <Plot
-                  data={
-                    Object.entries(data.reduce((acc, row) => {
-                      const g = row[groupCol] ?? "(missing)";
-                      if (!acc[g]) acc[g] = [];
-                      const val = parseNumber(row[gradeCol]);
-                      if (!Number.isNaN(val)) acc[g].push(val);
-                      return acc;
-                    }, {})).map(([grp, arr]) => ({ y: arr, type: "box", name: String(grp) }))
-                  }
-                  layout={{ autosize: true, title: "Boxplot by Group" }}
-                  style={{ width: "100%", height: "360px" }}
-                />
-              </div>
-            </>
           )}
         </div>
       </div>
