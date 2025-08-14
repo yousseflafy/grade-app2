@@ -111,10 +111,10 @@ export default function App() {
       N,
       "Passed": passCount,
       "Failed": N - passCount,
-      "Overall Passing Rate (%)": ((passCount / N) * 100).toFixed(1),
-      "Pass Rate (%)": simplePassRate, // New column
-      "Merit Rate (%)": ((meritCount / N) * 100).toFixed(1),
-      "Distinction Rate (%)": ((distCount / N) * 100).toFixed(1),
+      "Overall Passing Rate %": ((passCount / N) * 100).toFixed(1),
+      "Pass Rate %": simplePassRate, // New column
+      "Merit Rate %": ((meritCount / N) * 100).toFixed(1),
+      "Distinction Rate %": ((distCount / N) * 100).toFixed(1),
       Mean: mean.toFixed(2),
       SD: sd.toFixed(2),
       Max: Math.max(...grades),
@@ -146,9 +146,9 @@ export default function App() {
         N: n,
         "Passed": pass,
         "Failed": n - pass,
-        "Overall Passing Rate (%)": ((pass / n) * 100).toFixed(1),
-        "Pass Rate (%)": groupSimplePassRate, // New column
-        "Merit Rate (%)": ((mCount / n) * 100).toFixed(1),
+        "Overall Passing Rate %": ((pass / n) * 100).toFixed(1),
+        "Pass Rate %": groupSimplePassRate, // New column
+        "Merit Rate %": ((mCount / n) * 100).toFixed(1),
         "Distinction Rate (%)": ((d / n) * 100).toFixed(1),
         Mean: m.toFixed(2),
         SD: s.toFixed(2),
